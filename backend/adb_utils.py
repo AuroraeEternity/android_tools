@@ -84,7 +84,7 @@ class ADBUtils:
         :return:
         """
         # 获取标准输出结果和错误提示
-        stdout, error = ADBUtils.run_adb_command(['shell', 'pm1', 'path', package_name], device_id)
+        stdout, error = ADBUtils.run_adb_command(['shell', 'pm', 'path', package_name], device_id)
         if error:
             return False
         return stdout.strip().startswith('package:')
@@ -136,3 +136,28 @@ class ADBUtils:
             if 'No activities found' in stdout or stderr:
                 raise RuntimeError(f"无法通过 monkey 启动应用: {stderr or stdout}")
         return True
+
+    @staticmethod
+    def clear_app_data(device_id, package_name):
+        """
+        清理指定包名中的缓存数据
+        :param device_id:
+        :param package_name:
+        :return:
+        """
+        ADBUtils.ensure_device_available(device_id)
+        if not ADBUtils.package_exists(device_id, package_name):
+            raise ValueError(f"设备 {device_id} 上不存在包 {package_name}")
+
+        stdout, stderr = ADBUtils.run_adb_command(['shell', 'pm', 'clear', package_name], device_id)
+        if stderr or 'Failed' in stdout:
+            raise RuntimeError(f"清理应用失败: {stderr or stdout}")
+        stdout, stderr = ADBUtils.run_adb_command(['shell', 'am', 'force-stop', package_name], device_id)
+        if stderr or 'Failed' in stdout:
+            raise RuntimeError(f"清理应用失败: {stderr or stdout}")
+        return True
+
+
+if __name__ == '__main__':
+    # print(ADBUtils.package_exists("41583958554c3098", "com.solvely.photo.math.solver.calculator.ai"))
+    ADBUtils.clear_app_data("41583958554c3098", "com.solvely.photo.math.solver.calculator.ai")

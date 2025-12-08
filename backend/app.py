@@ -88,6 +88,21 @@ def restart_app():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/app/clear', methods=['POST'])
+def clear_app():
+    # 清除 app 缓存
+    data = request.json
+    device_id = data.get('device_id')
+    package_name = data.get('package_name')
+    if not device_id or not package_name:
+        return jsonify({"error": "Missing device_id or package_name"}), 400
+    try:
+        ADBUtils.clear_app_data(device_id, package_name)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
     # 运行，可调试、指定端口号
     app.run(debug=True, port=5100)
