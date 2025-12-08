@@ -7,7 +7,6 @@ class ADBUtils:
     BASE_DIR = Path(__file__).resolve().parent.parent
     CAPTURE_DIR = BASE_DIR / "captures"
 
-
     @staticmethod
     def run_adb_command(command, device_id=None):
         """
@@ -77,6 +76,63 @@ class ADBUtils:
             subprocess.run(cmd, check=True, stdout=fp)
         return local_path
 
+    @staticmethod
+    def package_exists(device_id, package_name):
+        """
+        检查对应包名是否存在
+        :param package_name:
+        :return:
+        """
+        # 获取标准输出结果和错误提示
+        stdout, error = ADBUtils.run_adb_command(['shell', 'pm1', 'path', package_name], device_id)
+        if error:
+            return False
+        return stdout.strip().startswith('package:')
 
-if __name__ == '__main__':
-    ADBUtils.capture_screenshot("123123")
+    @staticmethod
+    def ensure_device_available(device_id):
+        """
+        校验 device_id是否正确
+        :param device_id:
+        :return:
+        """
+        devices = ADBUtils.get_devices()
+        # 查看 device_id是否在列表中
+        if device_id not in devices:
+            raise ValueError(f"设备 {device_id} 未连接或未授权")
+        return True
+
+    @staticmethod
+    def clear_and_restart_app(device_id, package_name, activity_name=None):
+        """
+        清理并重启 app
+        流程: pm clear -> am force-stop -> am start (或 monkey 启动)
+
+        :param device_id:
+        :param package_name:
+        :param activity_name:
+        :return:
+        """
+        # 1. 清除应用缓存和数据
+        ADBUtils.ensure_device_available(device_id)
+        if not ADBUtils.package_exists(device_id, package_name):
+            raise ValueError(f"设备 {device_id} 上不存在包 {package_name}")
+
+        stdout, stderr = ADBUtils.run_adb_command(['shell', 'pm', 'clear', package_name], device_id)
+        if stderr or 'Failed' in stdout:
+            raise RuntimeError(f"清理应用失败: {stderr or stdout}")
+        # 2. 强制停止应用进程
+        stdout, stderr = ADBUtils.run_adb_command(['shell', 'am', 'force-stop', package_name], device_id)
+        if stderr and 'Unknown package' in stderr:
+            raise RuntimeError(f"强行停止失败: {stderr}")  # 3. 启动应用
+        if activity_name:
+            stdout, stderr = ADBUtils.run_adb_command(['shell', 'am', 'start', '-n', f"{package_name}/{activity_name}"],
+                                                      device_id)
+            if stderr or 'Error' in stdout:
+                raise RuntimeError(f"启动 Activity 失败: {stderr or stdout}")
+        else:
+            stdout, stderr = ADBUtils.run_adb_command(
+                ['shell', 'monkey', '-p', package_name, '-c', 'android.intent.category.LAUNCHER', '1'], device_id)
+            if 'No activities found' in stdout or stderr:
+                raise RuntimeError(f"无法通过 monkey 启动应用: {stderr or stdout}")
+        return True

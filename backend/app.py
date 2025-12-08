@@ -58,6 +58,36 @@ def screenshot():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/restart_app', methods=['POST'])
+def restart_app():
+    data = request.json
+    device_id = data.get('device_id')
+    package_name = data.get('package_name')
+    activity_name = data.get('activity_name')
+    if not device_id or package_name is None:
+        return jsonify({"error": "Missing parameters"}), 400
+
+    try:
+        ADBUtils.ensure_device_available(device_id)
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    if not ADBUtils.package_exists(device_id, package_name):
+        return jsonify({"error": f"包 {package_name} 不存在或未安装在设备 {device_id} 上"}), 400
+
+    # try:
+    #     add_or_update_package(package_name, activity_name)
+    # except Exception as e:
+    #     app.logger.warning("保存包名失败: %s", e)
+
+    try:
+        success = ADBUtils.clear_and_restart_app(device_id, package_name, activity_name)
+        return jsonify({"success": success})
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
     # 运行，可调试、指定端口号
     app.run(debug=True, port=5100)
