@@ -145,10 +145,6 @@ class ADBUtils:
         :param package_name:
         :return:
         """
-        ADBUtils.ensure_device_available(device_id)
-        if not ADBUtils.package_exists(device_id, package_name):
-            raise ValueError(f"设备 {device_id} 上不存在包 {package_name}")
-
         stdout, stderr = ADBUtils.run_adb_command(['shell', 'pm', 'clear', package_name], device_id)
         if stderr or 'Failed' in stdout:
             raise RuntimeError(f"清理应用失败: {stderr or stdout}")
@@ -156,6 +152,19 @@ class ADBUtils:
         if stderr or 'Failed' in stdout:
             raise RuntimeError(f"清理应用失败: {stderr or stdout}")
         return True
+
+    @staticmethod
+    def uninstall_app(device_id, package_name):
+        """
+        卸载指定包名的 app
+        :param device_id:
+        :param package_name:
+        :return:
+        """
+        stdout, stderr = ADBUtils.run_adb_command(['uninstall', package_name], device_id)
+        if stderr or 'Failed' in stdout:
+            raise RuntimeError(f"卸载 app 失败: {stderr or stdout}")
+        return 'Success' in stdout and (not stderr)
 
 
 if __name__ == '__main__':
