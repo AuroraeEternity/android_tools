@@ -1,8 +1,23 @@
 from flask import Flask, jsonify, request
 
 from backend.adb_utils import ADBUtils
+from pathlib import Path
 
 app = Flask(__name__)  # 实例化应用
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _require_device(param_source):
+    device_id = param_source.get('device_id')
+    if not device_id:
+        raise ValueError('Missing device_id')
+    return device_id
+
+
+def _file_url(path: Path):
+    relative = path.relative_to(BASE_DIR)
+    return f"/api/files?path={relative.as_posix()}"
 
 
 @app.route('/api/devices', methods=['GET'])
@@ -26,6 +41,19 @@ def send_text():
     try:
         ADBUtils.send_text(device_id, text)
         return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/screenshot', methods=['GET'])
+def screenshot():
+    # 对当前屏幕进行截图操作
+    try:
+        device_id = _require_device(request.args)
+        path = ADBUtils.capture_screenshot(device_id)
+        return jsonify({"path": str(path), "url": _file_url(path)})
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

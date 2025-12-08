@@ -1,7 +1,13 @@
 import subprocess
+import time
+from pathlib import Path
 
 
 class ADBUtils:
+    BASE_DIR = Path(__file__).resolve().parent.parent
+    CAPTURE_DIR = BASE_DIR / "captures"
+
+
     @staticmethod
     def run_adb_command(command, device_id=None):
         """
@@ -54,7 +60,23 @@ class ADBUtils:
         ADBUtils.run_adb_command(['shell', 'input', 'text', safe_text], device_id)
         return True
 
+    @staticmethod
+    def capture_screenshot(device_id):
+        """
+        截图并将图片传输到本地
+        :param device_id:
+        :return:
+        """
+        filename = f"screenshot_{device_id}_{int(time.time())}.png"
+        local_path = ADBUtils.CAPTURE_DIR / filename
+        with open(local_path, 'wb') as fp:
+            cmd = ['adb']
+            if device_id:
+                cmd += ['-s', device_id]
+            cmd += ['exec-out', 'screencap', '-p']
+            subprocess.run(cmd, check=True, stdout=fp)
+        return local_path
+
 
 if __name__ == '__main__':
-    device = ADBUtils.get_devices()[0]
-    print(ADBUtils.send_text(device, "123132132"))
+    ADBUtils.capture_screenshot("123123")
